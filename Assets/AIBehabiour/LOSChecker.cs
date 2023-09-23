@@ -5,8 +5,9 @@ using UnityEngine;
 public class LOSChecker : MonoBehaviour
 {
     public SphereCollider Collider;
-    [Range(36,360)]public float fov = 90f;
+    [Range(36, 360)] public float fov = 90f;
     public LayerMask LineOfSightLayers;
+    public LayerMask obstacleLayer;
     public delegate void GainSightEvent(Transform target);
     public GainSightEvent OnGainSight;
     public delegate void LoseSightEvent(Transform target);
@@ -23,7 +24,6 @@ public class LOSChecker : MonoBehaviour
     private void Awake()
     {
         Collider = GetComponent<SphereCollider>();
-        // Physics.IgnoreCollision(parentCollider, GetComponent<Collider>());
     }
 
     /* private void OnTriggerStay(Collider other) {
@@ -78,33 +78,46 @@ public class LOSChecker : MonoBehaviour
     private void OnTriggerStay(Collider other)
     {
         Renderer renderer = null;
-        if (debugMode){
+        if (debugMode)
+        {
             renderer = other.GetComponent<Renderer>();
             renderer.material.SetColor("_Color", Color.white);
         }
-        bool isInLos = checkIfIsLineOfSight(other.transform) && freeLOS(other.transform);
-        if (isInLos) {
-            if (debugMode && renderer != null ) {
-            renderer.material.SetColor("_Color", Color.yellow);
+        bool isInLos = checkIfIsLineOfSight(other.transform);
+        if (isInLos)
+        {
+            bool freeLos = freeLineOfSight(other.transform);
+            if (freeLos)
+            {
+                if (debugMode && renderer != null)
+                {
+                    renderer.material.SetColor("_Color", Color.magenta);
+                }
+                // TODO
+                // OnGainSight?.Invoke(other.transform);
             }
-            OnGainSight?.Invoke(other.transform);
         }
     }
-    bool freeLOS(Transform other) {
-        RaycastHit hitInfo;
-        var isCOl = Physics.Raycast(transform.position, other.position, out hitInfo);
-        Debug.Log("iscol: " + isCOl);
-        Debug.DrawLine(transform.position, other.position, Color.red);
-        Debug.Log(hitInfo.distance);
-        Debug.Log(hitInfo.normal);
-        Debug.Log(hitInfo.collider == null);
-        col = hitInfo.collider.transform as Transform;
-        bool res = other.name == hitInfo.collider.name;
-        return res;
+    bool freeLineOfSight(Transform other)
+    {
+        RaycastHit hit;
+        Physics.Linecast(transform.position, other.position, out hit);
+        if (debugMode)
+        {
+            Debug.DrawLine(transform.position, other.position, Color.red);
+        }
+        bool isChar = other.gameObject.layer == LayerMask.NameToLayer("Character");
+        bool res = other.name == hit.collider.name;
+        return res && isChar;
     }
-    bool checkIfIsLineOfSight(Transform other){
+    bool checkIfIsLineOfSight(Transform other)
+    {
         bool res = false;
-        
+        if (other.gameObject.layer != LayerMask.NameToLayer("Character"))
+        {
+            return res;
+        }
+
         Vector3 target = (other.transform.position - transform.position).normalized;
         float dotProduct = Vector3.Dot(transform.forward, target);
         float cosFov = Mathf.Cos(fov / fovDivisor);
@@ -112,7 +125,7 @@ public class LOSChecker : MonoBehaviour
         {
             return res;
         }
-        
+
         Debug.DrawRay(transform.position, target * Collider.radius, color);
         if (Physics.Raycast(transform.position, target, out RaycastHit hit, Collider.radius, LineOfSightLayers))
         {
@@ -120,7 +133,8 @@ public class LOSChecker : MonoBehaviour
         }
         return res;
     }
-    void debugFieldOfView(float viewDistance) {
+    void debugFieldOfView(float viewDistance)
+    {
         Debug.DrawRay(transform.position, transform.forward * viewDistance, color);
         Vector3 v = Quaternion.AngleAxis(fov, Vector3.up) * transform.forward;
         Debug.DrawRay(transform.position, v * viewDistance, color);

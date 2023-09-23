@@ -25,7 +25,6 @@ public class AIMovement : MonoBehaviour
     }
     void HandleOnGainSight(Transform Target)
     {
-        Debug.Log("A la vuista: " + Target.name);
         if (MovementCoroutine != null)
         {
             StopCoroutine(MovementCoroutine);
